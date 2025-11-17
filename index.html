@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#2c5f2d">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>麻雀理牌ゲーム</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="style.css">
+    <link rel="apple-touch-icon" href="icon-192.png">
+</head>
+<body>
+    <div id="app">
+        <!-- スタート画面 -->
+        <div id="start-screen" class="screen active">
+            <div class="container">
+                <h1>🀄 麻雀理牌ゲーム</h1>
+                <div class="rules">
+                    <h2>ルール</h2>
+                    <ul>
+                        <li>13枚の牌を各牌種ごとにソート</li>
+                        <li>同じ種類をまとめて数字順に並べる</li>
+                        <li>牌種の順序は自由</li>
+                        <li>タップで牌を選択・移動</li>
+                        <li>スコア = 手数 × 時間（秒）</li>
+                    </ul>
+                </div>
+                <button id="start-btn" class="btn-primary">ゲーム開始</button>
+            </div>
+        </div>
+
+        <!-- ゲーム画面 -->
+        <div id="game-screen" class="screen">
+            <div class="game-header">
+                <div class="stats">
+                    <div class="stat">
+                        <span class="label">手数</span>
+                        <span id="moves" class="value">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="label">時間</span>
+                        <span id="timer" class="value">0.0s</span>
+                    </div>
+                </div>
+                <button id="quit-btn" class="btn-secondary">終了</button>
+            </div>
+
+            <div class="game-content">
+                <div id="tiles-container" class="tiles-container">
+                    <!-- 牌がここに表示される -->
+                </div>
+                <div id="instruction" class="instruction">
+                    牌をタップして選択し、もう一度タップして移動
+                </div>
+            </div>
+        </div>
+
+        <!-- 結果画面 -->
+        <div id="result-screen" class="screen">
+            <div class="container">
+                <h1>🎉 完成！</h1>
+                <div class="result-stats">
+                    <div class="result-item">
+                        <span class="result-label">手数</span>
+                        <span id="result-moves" class="result-value">0</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">時間</span>
+                        <span id="result-time" class="result-value">0.0s</span>
+                    </div>
+                    <div class="result-item highlight">
+                        <span class="result-label">スコア</span>
+                        <span id="result-score" class="result-value">0.0</span>
+                    </div>
+                </div>
+                <div class="result-tiles">
+                    <h3>完成した配列</h3>
+                    <div id="final-tiles" class="tiles-display">
+                        <!-- 最終的な牌配列 -->
+                    </div>
+                </div>
+                <button id="restart-btn" class="btn-primary">もう一度プレイ</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
