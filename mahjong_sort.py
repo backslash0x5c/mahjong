@@ -200,18 +200,23 @@ def simulate_sorting_steps(tiles, lis_indices, rank_map):
 
     lis_set = set(lis_indices)
 
+    # Identify tiles to move (not in LIS)
+    to_move = [(i, tiles[i]) for i in range(len(tiles)) if i not in lis_set]
+
+    # Track which original indices still need to be moved
+    not_yet_moved = set([i for i, _ in to_move])
+
     # Record initial state
     steps.append({
         'step': 0,
         'tiles': [t for t, _ in current],
+        'original_indices': [i for _, i in current],
+        'not_yet_moved': not_yet_moved.copy(),
         'message': 'Initial hand',
         'move_from': None,
         'move_to': None,
         'moved_tile': None
     })
-
-    # Identify tiles to move (not in LIS)
-    to_move = [(i, tiles[i]) for i in range(len(tiles)) if i not in lis_set]
 
     step_num = 0
 
@@ -245,12 +250,17 @@ def simulate_sorting_steps(tiles, lis_indices, rank_map):
         # Insert the tile
         current.insert(target_pos, item)
 
+        # Remove this tile from the not_yet_moved set
+        not_yet_moved.discard(orig_idx)
+
         step_num += 1
 
         # Record step
         steps.append({
             'step': step_num,
             'tiles': [t for t, _ in current],
+            'original_indices': [i for _, i in current],
+            'not_yet_moved': not_yet_moved.copy(),
             'message': f'Move {step_num}',
             'move_from': from_pos,
             'move_to': target_pos,
@@ -305,6 +315,8 @@ def main():
     for step_info in steps:
         step_num = step_info['step']
         step_tiles = step_info['tiles']
+        original_indices = step_info['original_indices']
+        not_yet_moved = step_info['not_yet_moved']
         message = step_info['message']
 
         if step_num == 0:
@@ -318,7 +330,16 @@ def main():
             emoji = display_tile(moved_tile)
             print(f"Step {step_num}: Move {emoji}({moved_tile}) from position {from_pos} to position {to_pos}")
 
-        print("  " + " ".join([display_tile(t) for t in step_tiles]))
+        # Mark tiles that still need to be moved with *
+        marked_emojis = []
+        for i, (tile, orig_idx) in enumerate(zip(step_tiles, original_indices)):
+            emoji = display_tile(tile)
+            if orig_idx in not_yet_moved:
+                marked_emojis.append(emoji + "*")
+            else:
+                marked_emojis.append(emoji + " ")
+
+        print("  " + " ".join(marked_emojis))
         print("  " + " ".join(step_tiles))
         print()
 
