@@ -10,6 +10,7 @@
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="style.css">
     <link rel="apple-touch-icon" href="icon-192.png">
+    <script src="tile-renderer.js"></script>
 </head>
 <body>
     <div id="app">
@@ -23,7 +24,7 @@
                         <li>13枚の牌を各牌種ごとにソート</li>
                         <li>同じ種類をまとめて数字順に並べる</li>
                         <li>牌種の順序は自由</li>
-                        <li>タップで牌を選択・移動</li>
+                        <li>牌をドラッグ&ドロップで並び替え</li>
                         <li>スコア = 手数 × 時間（秒）</li>
                     </ul>
                 </div>
@@ -52,7 +53,7 @@
                     <!-- 牌がここに表示される -->
                 </div>
                 <div id="instruction" class="instruction">
-                    牌をタップして選択し、もう一度タップして移動
+                    牌をドラッグ&ドロップして並び替え
                 </div>
             </div>
         </div>

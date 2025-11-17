@@ -1,20 +1,4 @@
-// 麻雀理牌ゲーム - PWA版
-
-// 麻雀牌の絵文字マッピング
-const TILE_EMOJI = {
-    // 萬子 (1m-9m)
-    '1m': '🀇', '2m': '🀈', '3m': '🀉', '4m': '🀊', '5m': '🀋',
-    '6m': '🀌', '7m': '🀍', '8m': '🀎', '9m': '🀏',
-    // 筒子 (1p-9p)
-    '1p': '🀙', '2p': '🀚', '3p': '🀛', '4p': '🀜', '5p': '🀝',
-    '6p': '🀞', '7p': '🀟', '8p': '🀠', '9p': '🀡',
-    // 索子 (1s-9s)
-    '1s': '🀐', '2s': '🀑', '3s': '🀒', '4s': '🀓', '5s': '🀔',
-    '6s': '🀕', '7s': '🀖', '8s': '🀗', '9s': '🀘',
-    // 字牌 (1z-7z: 東南西北白發中)
-    '1z': '🀀', '2z': '🀁', '3z': '🀂', '4z': '🀃',
-    '5z': '🀆', '6z': '🀅', '7z': '🀄',
-};
+// 麻雀理牌ゲーム - PWA版（ドラッグ&ドロップ対応）
 
 // ゲーム状態
 let gameState = {
@@ -22,7 +6,8 @@ let gameState = {
     moves: 0,
     startTime: null,
     timerInterval: null,
-    selectedTileIndex: null,
+    draggedIndex: null,
+    draggedElement: null,
 };
 
 // ランダムに牌を生成
@@ -114,54 +99,213 @@ function displayTiles() {
     container.innerHTML = '';
 
     gameState.tiles.forEach((tile, index) => {
-        const tileElement = document.createElement('div');
-        tileElement.className = 'tile';
-        tileElement.textContent = TILE_EMOJI[tile];
-        tileElement.dataset.index = index;
+        const tileWrapper = document.createElement('div');
+        tileWrapper.className = 'tile-wrapper';
+        tileWrapper.dataset.index = index;
 
-        if (gameState.selectedTileIndex === index) {
-            tileElement.classList.add('selected');
-        }
+        // SVG牌を生成
+        const tileSVG = TileRenderer.generateTileSVG(tile, 60, 80);
+        tileSVG.classList.add('tile');
+        tileWrapper.appendChild(tileSVG);
 
-        tileElement.addEventListener('click', () => handleTileClick(index));
-        container.appendChild(tileElement);
+        // ドラッグ可能にする
+        tileWrapper.draggable = true;
+
+        // マウスイベント
+        tileWrapper.addEventListener('dragstart', handleDragStart);
+        tileWrapper.addEventListener('dragend', handleDragEnd);
+        tileWrapper.addEventListener('dragover', handleDragOver);
+        tileWrapper.addEventListener('drop', handleDrop);
+        tileWrapper.addEventListener('dragenter', handleDragEnter);
+        tileWrapper.addEventListener('dragleave', handleDragLeave);
+
+        // タッチイベント（モバイル対応）
+        tileWrapper.addEventListener('touchstart', handleTouchStart, { passive: false });
+        tileWrapper.addEventListener('touchmove', handleTouchMove, { passive: false });
+        tileWrapper.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+        container.appendChild(tileWrapper);
     });
 }
 
-// 牌クリック処理
-function handleTileClick(index) {
-    if (gameState.selectedTileIndex === null) {
-        // 牌を選択
-        gameState.selectedTileIndex = index;
-        displayTiles();
-        updateInstruction('移動先の位置をタップ');
-    } else if (gameState.selectedTileIndex === index) {
-        // 同じ牌をクリック → 選択解除
-        gameState.selectedTileIndex = null;
-        displayTiles();
-        updateInstruction('牌をタップして選択し、もう一度タップして移動');
-    } else {
+// ドラッグ開始
+function handleDragStart(e) {
+    gameState.draggedElement = e.currentTarget;
+    gameState.draggedIndex = parseInt(e.currentTarget.dataset.index);
+    e.currentTarget.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', e.currentTarget.innerHTML);
+}
+
+// ドラッグ終了
+function handleDragEnd(e) {
+    e.currentTarget.classList.remove('dragging');
+    // すべてのドラッグオーバー表示をクリア
+    document.querySelectorAll('.tile-wrapper').forEach(tile => {
+        tile.classList.remove('drag-over');
+    });
+}
+
+// ドラッグオーバー
+function handleDragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+}
+
+// ドラッグ進入
+function handleDragEnter(e) {
+    if (e.currentTarget !== gameState.draggedElement) {
+        e.currentTarget.classList.add('drag-over');
+    }
+}
+
+// ドラッグ離脱
+function handleDragLeave(e) {
+    e.currentTarget.classList.remove('drag-over');
+}
+
+// ドロップ
+function handleDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+
+    const dropIndex = parseInt(e.currentTarget.dataset.index);
+
+    if (gameState.draggedIndex !== dropIndex) {
         // 牌を移動
-        moveTile(gameState.selectedTileIndex, index);
-        gameState.selectedTileIndex = null;
+        const draggedTile = gameState.tiles.splice(gameState.draggedIndex, 1)[0];
+        gameState.tiles.splice(dropIndex, 0, draggedTile);
+
         gameState.moves++;
         updateStats();
         displayTiles();
-        updateInstruction('牌をタップして選択し、もう一度タップして移動');
 
         // 完成チェック
         if (isSorted(gameState.tiles)) {
             setTimeout(() => {
                 endGame();
-            }, 500);
+            }, 300);
+        }
+    }
+
+    e.currentTarget.classList.remove('drag-over');
+    return false;
+}
+
+// タッチイベント処理（モバイル対応）
+let touchState = {
+    startX: 0,
+    startY: 0,
+    element: null,
+    clone: null,
+    currentDropTarget: null,
+};
+
+function handleTouchStart(e) {
+    const touch = e.touches[0];
+    const element = e.currentTarget;
+
+    touchState.element = element;
+    touchState.startX = touch.clientX;
+    touchState.startY = touch.clientY;
+
+    gameState.draggedIndex = parseInt(element.dataset.index);
+
+    // ドラッグ中の視覚的フィードバック用のクローンを作成
+    touchState.clone = element.cloneNode(true);
+    touchState.clone.classList.add('dragging-touch');
+    touchState.clone.style.position = 'fixed';
+    touchState.clone.style.pointerEvents = 'none';
+    touchState.clone.style.zIndex = '1000';
+    touchState.clone.style.opacity = '0.8';
+    updateClonePosition(touch.clientX, touch.clientY);
+    document.body.appendChild(touchState.clone);
+
+    element.classList.add('dragging');
+}
+
+function handleTouchMove(e) {
+    e.preventDefault();
+
+    if (!touchState.element) return;
+
+    const touch = e.touches[0];
+    updateClonePosition(touch.clientX, touch.clientY);
+
+    // 現在のタッチ位置の下にある要素を取得
+    touchState.clone.style.display = 'none';
+    const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+    touchState.clone.style.display = '';
+
+    // ドラッグオーバー効果
+    document.querySelectorAll('.tile-wrapper').forEach(tile => {
+        tile.classList.remove('drag-over');
+    });
+
+    if (elementBelow) {
+        const tileWrapper = elementBelow.closest('.tile-wrapper');
+        if (tileWrapper && tileWrapper !== touchState.element) {
+            tileWrapper.classList.add('drag-over');
+            touchState.currentDropTarget = tileWrapper;
         }
     }
 }
 
-// 牌を移動
-function moveTile(fromIndex, toIndex) {
-    const tile = gameState.tiles.splice(fromIndex, 1)[0];
-    gameState.tiles.splice(toIndex, 0, tile);
+function handleTouchEnd(e) {
+    if (!touchState.element) return;
+
+    touchState.element.classList.remove('dragging');
+
+    // クローンを削除
+    if (touchState.clone && touchState.clone.parentNode) {
+        touchState.clone.parentNode.removeChild(touchState.clone);
+    }
+
+    // ドロップ処理
+    if (touchState.currentDropTarget) {
+        const dropIndex = parseInt(touchState.currentDropTarget.dataset.index);
+
+        if (gameState.draggedIndex !== dropIndex) {
+            // 牌を移動
+            const draggedTile = gameState.tiles.splice(gameState.draggedIndex, 1)[0];
+            gameState.tiles.splice(dropIndex, 0, draggedTile);
+
+            gameState.moves++;
+            updateStats();
+            displayTiles();
+
+            // 完成チェック
+            if (isSorted(gameState.tiles)) {
+                setTimeout(() => {
+                    endGame();
+                }, 300);
+            }
+        }
+    }
+
+    // クリーンアップ
+    document.querySelectorAll('.tile-wrapper').forEach(tile => {
+        tile.classList.remove('drag-over');
+    });
+
+    touchState = {
+        startX: 0,
+        startY: 0,
+        element: null,
+        clone: null,
+        currentDropTarget: null,
+    };
+}
+
+function updateClonePosition(x, y) {
+    if (touchState.clone) {
+        touchState.clone.style.left = (x - 30) + 'px';
+        touchState.clone.style.top = (y - 40) + 'px';
+    }
 }
 
 // 指示を更新
@@ -215,12 +359,12 @@ function showScreen(screenId) {
 function startGame() {
     gameState.tiles = generateRandomTiles(13);
     gameState.moves = 0;
-    gameState.selectedTileIndex = null;
 
     updateStats();
     displayTiles();
     showScreen('game-screen');
     startTimer();
+    updateInstruction('牌をドラッグ&ドロップして並び替え');
 }
 
 // ゲーム終了
@@ -238,10 +382,9 @@ function endGame() {
     const finalTilesContainer = document.getElementById('final-tiles');
     finalTilesContainer.innerHTML = '';
     gameState.tiles.forEach(tile => {
-        const tileElement = document.createElement('div');
-        tileElement.className = 'tile';
-        tileElement.textContent = TILE_EMOJI[tile];
-        finalTilesContainer.appendChild(tileElement);
+        const tileSVG = TileRenderer.generateTileSVG(tile, 50, 65);
+        tileSVG.classList.add('tile');
+        finalTilesContainer.appendChild(tileSVG);
     });
 
     showScreen('result-screen');

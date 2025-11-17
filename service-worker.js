@@ -1,11 +1,12 @@
 // Service Worker for PWA - オフライン対応
 
-const CACHE_NAME = 'mahjong-game-v1';
+const CACHE_NAME = 'mahjong-game-v2';
 const urlsToCache = [
     '/',
     '/index.html',
     '/style.css',
     '/app.js',
+    '/tile-renderer.js',
     '/manifest.json'
 ];
 
