@@ -10,6 +10,22 @@ let gameState = {
     draggedElement: null,
 };
 
+// 牌コードから画像ファイル名への変換
+function getTileImagePath(tileCode) {
+    const num = tileCode[0];
+    const suit = tileCode[1];
+
+    const suitMap = {
+        'm': 'man',
+        'p': 'pin',
+        's': 'sou',
+        'z': 'ji'
+    };
+
+    const fileName = `${suitMap[suit]}${num}-66-90-l.png`;
+    return `image/${fileName}`;
+}
+
 // デバイス検出
 function isMobileDevice() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
@@ -138,7 +154,7 @@ function displayTiles() {
 
         // 画像を使用
         const tileImg = document.createElement('img');
-        tileImg.src = `image/${tile}.svg`;
+        tileImg.src = getTileImagePath(tile);
         tileImg.alt = tile;
         tileImg.className = 'tile';
         tileImg.style.width = `${tileSize.width}px`;
@@ -471,7 +487,7 @@ function endGame() {
     finalTilesContainer.innerHTML = '';
     gameState.tiles.forEach(tile => {
         const tileImg = document.createElement('img');
-        tileImg.src = `image/${tile}.svg`;
+        tileImg.src = getTileImagePath(tile);
         tileImg.alt = tile;
         tileImg.className = 'tile';
         finalTilesContainer.appendChild(tileImg);
