@@ -236,10 +236,14 @@ def simulate_sorting_steps(tiles, lis_indices, rank_map):
         item = current.pop(from_pos)
 
         # Find correct insertion position based on rank
-        # Insert after all tiles with smaller or equal rank
+        # Only consider tiles that are already in their final position (not in not_yet_moved)
         target_pos = 0
         tile_rank = rank_map[tile]
         for i, (t, idx) in enumerate(current):
+            # Skip tiles that will be moved later (marked with *)
+            if idx in not_yet_moved:
+                continue
+
             t_rank = rank_map[t]
             if t_rank < tile_rank:
                 target_pos = i + 1
