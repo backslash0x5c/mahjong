@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-麻雀の理牌最小手数計算プログラム
+Mahjong Tile Sorting - Minimum Moves Calculator
 """
 
 import random
@@ -11,121 +11,121 @@ from bisect import bisect_left
 
 def generate_random_tiles(n=13):
     """
-    ランダムに n 枚の麻雀牌を生成
-    麻雀牌は各4枚ずつ存在
+    Generate n random mahjong tiles
+    Each tile type has 4 copies
     """
     all_tiles = []
-    
-    # 萬子 1m～9m
+
+    # Character tiles (Man) 1m~9m
     for i in range(1, 10):
         all_tiles.extend([f"{i}m"] * 4)
-    
-    # 筒子 1p～9p
+
+    # Circle tiles (Pin) 1p~9p
     for i in range(1, 10):
         all_tiles.extend([f"{i}p"] * 4)
-    
-    # 索子 1s～9s
+
+    # Bamboo tiles (Sou) 1s~9s
     for i in range(1, 10):
         all_tiles.extend([f"{i}s"] * 4)
-    
-    # 字牌 1z～7z（東南西北白発中）
+
+    # Honor tiles 1z~7z (East, South, West, North, White, Green, Red)
     for i in range(1, 8):
         all_tiles.extend([f"{i}z"] * 4)
-    
-    # ランダムに13枚を選択
+
+    # Randomly select n tiles
     return random.sample(all_tiles, n)
 
 
 def create_rank_map(suit_order):
     """
-    牌種順序に基づいて、各牌に順位を割り当てる
-    suit_order: 例 ('m', 'p', 's', 'z')
-    字牌内順序は東南西北-白発中に固定
+    Assign rank to each tile based on suit order
+    suit_order: e.g., ('m', 'p', 's', 'z')
+    Honor tiles are fixed in order: East, South, West, North, White, Green, Red
     """
     rank_map = {}
     rank = 1
-    
+
     for suit in suit_order:
         if suit == 'z':
-            # 字牌：1z～7z（東南西北白発中）
+            # Honor tiles: 1z~7z (East, South, West, North, White, Green, Red)
             for i in range(1, 8):
                 rank_map[f"{i}{suit}"] = rank
                 rank += 1
         else:
-            # 数牌：1～9
+            # Number tiles: 1~9
             for i in range(1, 10):
                 rank_map[f"{i}{suit}"] = rank
                 rank += 1
-    
+
     return rank_map
 
 
 def longest_increasing_subsequence(arr):
     """
-    最長増加部分列（LIS）の長さと実際の要素のインデックスを O(n log n) で求める
-    戻り値: (LISの長さ, LISの要素のインデックスリスト)
+    Find the length of Longest Increasing Subsequence (LIS) and indices in O(n log n)
+    Returns: (LIS length, list of indices in LIS)
     """
     if not arr:
         return 0, []
-    
+
     n = len(arr)
-    tails = []  # tails[i] = 長さ i+1 の LIS の末尾要素の最小値
-    tails_idx = []  # tails_idx[i] = その要素のインデックス
-    parent = [-1] * n  # parent[i] = インデックスiの要素の前の要素のインデックス
-    lis_end = [-1] * n  # lis_end[i] = 長さi+1のLISの末尾のインデックス
-    
+    tails = []  # tails[i] = minimum tail value of LIS with length i+1
+    tails_idx = []  # tails_idx[i] = index of that element
+    parent = [-1] * n  # parent[i] = index of previous element for element at index i
+    lis_end = [-1] * n  # lis_end[i] = index of tail of LIS with length i+1
+
     for i, num in enumerate(arr):
         pos = bisect_left(tails, num)
-        
+
         if pos == len(tails):
             tails.append(num)
             tails_idx.append(i)
         else:
             tails[pos] = num
             tails_idx[pos] = i
-        
-        # 親を記録
+
+        # Record parent
         if pos > 0:
             parent[i] = tails_idx[pos - 1]
-        
+
         lis_end[pos] = i
-    
-    # バックトラックでLISを復元
+
+    # Backtrack to restore LIS
     lis_length = len(tails)
     lis_indices = []
     current = tails_idx[-1]
-    
+
     while current != -1:
         lis_indices.append(current)
         current = parent[current]
-    
+
     lis_indices.reverse()
-    
+
     return lis_length, lis_indices
 
 
 def calculate_min_moves(tiles):
     """
-    24通りの牌種順序を全探索し、最小手数を求める
+    Search all 24 suit orderings and find the minimum number of moves
     """
     min_moves = len(tiles)
     best_order = None
     best_lis_length = 0
     best_rank_array = None
     best_lis_indices = None
-    
-    # 4種類の牌種の全順列（24通り）
+
+    # All permutations of 4 suits (24 patterns)
     for suit_order in permutations(['m', 'p', 's', 'z']):
-        # 順位マップを作成
+        # Create rank map
         rank_map = create_rank_map(suit_order)
-        
-        # 現在の配列を順位配列に変換
+
+        # Convert current array to rank array
         rank_array = [rank_map[tile] for tile in tiles]
-        
-        # LIS の長さとインデックスを計算
+
+        # Calculate LIS length and indices
         lis_length, lis_indices = longest_increasing_subsequence(rank_array)
-        
-        # 最小手数を更新
+
+        # Update minimum moves
         moves = len(tiles) - lis_length
         if moves < min_moves:
             min_moves = moves
@@ -133,213 +133,235 @@ def calculate_min_moves(tiles):
             best_lis_length = lis_length
             best_rank_array = rank_array
             best_lis_indices = lis_indices
-    
+
     return min_moves, best_order, best_lis_length, best_rank_array, best_lis_indices
 
 
 def get_suit_name(suit):
-    """牌種コードから名前を取得"""
-    names = {'m': '萬子', 'p': '筒子', 's': '索子', 'z': '字牌'}
+    """Get suit name in English"""
+    names = {'m': 'Man', 'p': 'Pin', 's': 'Sou', 'z': 'Honor'}
     return names[suit]
 
 
 def display_tile(tile):
-    """牌を日本語表記で表示"""
+    """Display tile as emoji"""
     num = tile[0]
     suit = tile[1]
-    
-    if suit == 'z':
-        names = {'1': '東', '2': '南', '3': '西', '4': '北', 
-                 '5': '白', '6': '發', '7': '中'}
-        return names[num]
-    else:
-        suit_names = {'m': '萬', 'p': '筒', 's': '索'}
-        kanji_nums = {'1': '一', '2': '二', '3': '三', '4': '四', '5': '五',
-                      '6': '六', '7': '七', '8': '八', '9': '九'}
-        return kanji_nums[num] + suit_names[suit]
+
+    # Mahjong tile emojis mapping
+    if suit == 'm':
+        # Character tiles (Manzu): 🀇-🀏
+        emoji_map = {
+            '1': '🀇', '2': '🀈', '3': '🀉', '4': '🀊', '5': '🀋',
+            '6': '🀌', '7': '🀍', '8': '🀎', '9': '🀏'
+        }
+        return emoji_map[num]
+    elif suit == 'p':
+        # Circle tiles (Pinzu): 🀙-🀡
+        emoji_map = {
+            '1': '🀙', '2': '🀚', '3': '🀛', '4': '🀜', '5': '🀝',
+            '6': '🀞', '7': '🀟', '8': '🀠', '9': '🀡'
+        }
+        return emoji_map[num]
+    elif suit == 's':
+        # Bamboo tiles (Souzu): 🀐-🀘
+        emoji_map = {
+            '1': '🀐', '2': '🀑', '3': '🀒', '4': '🀓', '5': '🀔',
+            '6': '🀕', '7': '🀖', '8': '🀗', '9': '🀘'
+        }
+        return emoji_map[num]
+    elif suit == 'z':
+        # Honor tiles: 🀀🀁🀂🀃🀆🀅🀄
+        emoji_map = {
+            '1': '🀀',  # East
+            '2': '🀁',  # South
+            '3': '🀂',  # West
+            '4': '🀃',  # North
+            '5': '🀆',  # White
+            '6': '🀅',  # Green
+            '7': '🀄'   # Red
+        }
+        return emoji_map[num]
+
+    return tile
 
 
 def simulate_sorting_steps(tiles, lis_indices, rank_map):
     """
-    1手ずつの操作過程をシミュレートして返す
-    確実に目標配列に到達する手順を示す（理論的最小手数とは限らない）
+    Simulate the sorting process step by step
+    Shows a sequence that reaches the target array (not necessarily the theoretical minimum)
     """
     steps = []
-    
-    # 目標配列を生成
+
+    # Generate target array
     target = sorted([(tile, i) for i, tile in enumerate(tiles)],
                    key=lambda x: (rank_map[x[0]], x[1]))
     target_tiles = [t for t, _ in target]
-    
-    # 現在の配列
+
+    # Current array
     current = list(tiles)
-    
-    # 初期状態を記録
+
+    # Record initial state
     steps.append({
         'step': 0,
         'tiles': current.copy(),
-        'message': '初期配牌',
+        'message': 'Initial hand',
         'move_from': None,
         'move_to': None,
         'moved_tile': None
     })
-    
+
     step_num = 0
-    
-    # 左から順に、各位置を正しい牌で埋めていく
+
+    # Fill each position with the correct tile from left to right
     for target_pos in range(len(current)):
-        # target_posに配置されるべき牌
+        # Tile that should be placed at target_pos
         target_tile = target_tiles[target_pos]
-        
-        # すでに正しい牌が配置されていればスキップ
+
+        # Skip if correct tile is already placed
         if current[target_pos] == target_tile:
             continue
-        
-        # 正しい牌を現在の配列から探す（target_posより後ろから）
+
+        # Find the correct tile in current array (from positions after target_pos)
         from_pos = None
         for i in range(target_pos + 1, len(current)):
             if current[i] == target_tile:
                 from_pos = i
                 break
-        
+
         if from_pos is None:
-            # 見つからない場合は前方を探す（通常はあり得ないが念のため）
+            # Search forward if not found (shouldn't happen, but just in case)
             for i in range(target_pos):
                 if current[i] == target_tile:
                     from_pos = i
                     break
-        
+
         if from_pos is None or from_pos == target_pos:
             continue
-        
-        # 牌を移動
+
+        # Move tile
         moved_tile = current.pop(from_pos)
         current.insert(target_pos, moved_tile)
-        
+
         step_num += 1
-        
-        # ステップを記録
+
+        # Record step
         steps.append({
             'step': step_num,
             'tiles': current.copy(),
-            'message': f'{step_num}手目',
+            'message': f'Move {step_num}',
             'move_from': from_pos,
             'move_to': target_pos,
             'moved_tile': moved_tile
         })
-    
+
     return steps
 
 
 def main():
-    print("=" * 60)
-    print("麻雀理牌最小手数計算プログラム")
-    print("=" * 60)
+    print("=" * 70)
+    print("Mahjong Tile Sorting - Minimum Moves Calculator")
+    print("=" * 70)
     print()
-    
-    # ランダムに13牌を生成
+
+    # Generate random 13 tiles
     tiles = generate_random_tiles(13)
-    
-    print("【生成された配牌】")
-    print("表記形式:", " ".join(tiles))
-    print("日本語表記:", " ".join([display_tile(t) for t in tiles]))
-    print()
-    
-    # 最小手数を計算
+
+    # Calculate minimum moves
     min_moves, best_order, lis_length, rank_array, lis_indices = calculate_min_moves(tiles)
-    
-    print("【計算結果】")
-    print(f"24通りの牌種順序を全探索しました")
+
+    print("[CALCULATION RESULT]")
+    print(f"Explored all 24 suit orderings")
     print()
-    print(f"最小手数: {min_moves}手")
-    print(f"最長増加部分列（LIS）の長さ: {lis_length}枚（動かさなくて良い牌）")
-    print(f"最適な牌種順序: {' → '.join([get_suit_name(s) for s in best_order])}")
-    print(f"                ({'-'.join(best_order)})")
+    print(f"Minimum moves required: {min_moves}")
+    print(f"Longest Increasing Subsequence (LIS): {lis_length} tiles (don't need to move)")
+    print(f"Optimal suit order: {' → '.join([get_suit_name(s) for s in best_order])}")
+    print(f"                    ({'-'.join(best_order)})")
     print()
-    
-    # 生成配牌に*印をつけて表示（動かすべき牌に*）
+
+    # Display initial hand with * marking tiles to move
     lis_indices_set = set(lis_indices)
-    print("【生成配牌（*印は動かすべき牌）】")
-    marked_tiles = []
-    marked_tiles_jp = []
+    print("[INITIAL HAND (* = tiles to move)]")
+    marked_tiles_emoji = []
     for i, tile in enumerate(tiles):
+        emoji = display_tile(tile)
         if i not in lis_indices_set:
-            marked_tiles.append(tile + "*")
-            marked_tiles_jp.append(display_tile(tile) + "*")
+            marked_tiles_emoji.append(emoji + "*")
         else:
-            marked_tiles.append(tile)
-            marked_tiles_jp.append(display_tile(tile))
-    
-    print("表記形式:", " ".join(marked_tiles))
-    print("日本語表記:", " ".join(marked_tiles_jp))
+            marked_tiles_emoji.append(emoji + " ")
+
+    print("  " + " ".join(marked_tiles_emoji))
+    print("  " + " ".join(tiles))
     print()
-    
-    # 1手ずつの操作過程を表示
+
+    # Display step-by-step sorting process
     rank_map = create_rank_map(best_order)
     steps = simulate_sorting_steps(tiles, lis_indices, rank_map)
-    
-    print("【操作過程】")
+
+    print("[SORTING STEPS]")
     print()
     for step_info in steps:
         step_num = step_info['step']
         step_tiles = step_info['tiles']
         message = step_info['message']
-        
+
         if step_num == 0:
-            # 初期配牌
-            print(f"■ {message}")
+            # Initial hand
+            print(f"Step {step_num}: Initial hand")
         else:
-            # 操作後
+            # After operation
             moved_tile = step_info['moved_tile']
             from_pos = step_info['move_from']
             to_pos = step_info['move_to']
-            print(f"■ {message}: 位置{from_pos}の{moved_tile}({display_tile(moved_tile)})を位置{to_pos}に移動")
-        
-        print(f"   表記形式: {' '.join(step_tiles)}")
-        print(f"   日本語表記: {' '.join([display_tile(t) for t in step_tiles])}")
+            emoji = display_tile(moved_tile)
+            print(f"Step {step_num}: Move {emoji}({moved_tile}) from position {from_pos} to position {to_pos}")
+
+        print("  " + " ".join([display_tile(t) for t in step_tiles]))
+        print("  " + " ".join(step_tiles))
         print()
-    
-    # 最終確認
+
+    # Display target arrangement
     sorted_tiles = sorted(tiles, key=lambda t: rank_map[t])
-    print("【目標配列（最終状態）】")
-    print("表記形式:", " ".join(sorted_tiles))
-    print("日本語表記:", " ".join([display_tile(t) for t in sorted_tiles]))
+    print("[TARGET ARRANGEMENT (Final state)]")
+    print("  " + " ".join([display_tile(t) for t in sorted_tiles]))
+    print("  " + " ".join(sorted_tiles))
     print()
-    print("=" * 60)
+    print("=" * 70)
     print()
-    
-    # 詳細情報（オプション）
-    print("【詳細情報】")
+
+    # Detailed information (optional)
+    print("[DETAILED INFORMATION]")
     print()
-    
-    # LISを構成する牌を表示
-    print("動かさなくて良い牌（LIS）:")
-    print(f"  位置: {lis_indices}")
+
+    # Display tiles in LIS
+    print("Tiles that don't need to move (LIS):")
+    print(f"  Positions: {lis_indices}")
     lis_tiles = [tiles[i] for i in lis_indices]
-    print(f"  表記形式: {' '.join(lis_tiles)}")
-    print(f"  日本語表記: {' '.join([display_tile(t) for t in lis_tiles])}")
+    print(f"  Tiles: {' '.join([display_tile(t) for t in lis_tiles])}")
+    print(f"         {' '.join(lis_tiles)}")
     print()
-    
-    # 動かす必要がある牌を表示
+
+    # Display tiles that need to move
     move_indices = [i for i in range(len(tiles)) if i not in lis_indices_set]
-    print("動かす必要がある牌:")
-    print(f"  位置: {move_indices}")
+    print("Tiles that need to move:")
+    print(f"  Positions: {move_indices}")
     move_tiles = [tiles[i] for i in move_indices]
-    print(f"  表記形式: {' '.join(move_tiles)}")
-    print(f"  日本語表記: {' '.join([display_tile(t) for t in move_tiles])}")
+    print(f"  Tiles: {' '.join([display_tile(t) for t in move_tiles])}")
+    print(f"         {' '.join(move_tiles)}")
     print()
-    
-    # 最適順序での順位配列を表示
-    print("最適順序での各牌の順位:")
+
+    # Display rank for each tile in optimal order
+    print("Rank of each tile in optimal order:")
     for i, tile in enumerate(tiles):
         marker = " ○" if i in lis_indices_set else " ×"
-        status = "残す" if i in lis_indices_set else "動かす"
-        print(f"  位置{i:2d}: {tile:3s} ({display_tile(tile):2s}) → 順位 {rank_map[tile]:2d} {marker} [{status}]")
-    
+        status = "Keep" if i in lis_indices_set else "Move"
+        emoji = display_tile(tile)
+        print(f"  Pos {i:2d}: {emoji} {tile:3s} → Rank {rank_map[tile]:2d} {marker} [{status}]")
+
     print()
-    print("順位配列:", rank_array)
+    print("Rank array:", rank_array)
     print()
-    print("=" * 60)
+    print("=" * 70)
 
 
 if __name__ == "__main__":
