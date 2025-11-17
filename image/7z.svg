@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 80" width="60" height="80">
+  <!-- 背景 -->
+  <rect width="60" height="80" rx="4" fill="#f5f5dc" stroke="#333" stroke-width="2"/>
+  <!-- 内容 -->
+  <text x="30" y="50" text-anchor="middle" font-size="28" font-weight="bold" fill="#d32f2f" font-family="serif">中</text>
+</svg>

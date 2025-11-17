@@ -1,4 +1,4 @@
-// 麻雀理牌ゲーム - PWA版（ドラッグ&ドロップ対応）
+// 麻雀理牌ゲーム - PWA版（ドラッグ&ドロップ対応・画像使用）
 
 // ゲーム状態
 let gameState = {
@@ -9,6 +9,12 @@ let gameState = {
     draggedIndex: null,
     draggedElement: null,
 };
+
+// デバイス検出
+function isMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+           (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
+}
 
 // ランダムに牌を生成
 function generateRandomTiles(n = 13) {
@@ -93,42 +99,85 @@ function isSorted(tiles) {
     return true;
 }
 
+// 牌のサイズを計算（モバイルで横一列に収まるように）
+function calculateTileSize() {
+    if (!isMobileDevice()) {
+        return { width: 60, height: 80 }; // デスクトップは固定サイズ
+    }
+
+    const container = document.getElementById('tiles-container');
+    const containerWidth = container.clientWidth;
+    const tileCount = gameState.tiles.length;
+    const gap = 8; // gap between tiles
+    const padding = 32; // container padding
+
+    // 利用可能な幅を計算
+    const availableWidth = containerWidth - padding - (gap * (tileCount - 1));
+    const tileWidth = Math.floor(availableWidth / tileCount);
+
+    // 最大サイズと最小サイズを設定
+    const maxWidth = 60;
+    const minWidth = 35;
+    const finalWidth = Math.max(minWidth, Math.min(maxWidth, tileWidth));
+    const finalHeight = Math.floor(finalWidth * 4 / 3); // アスペクト比 3:4
+
+    return { width: finalWidth, height: finalHeight };
+}
+
 // 牌を表示
 function displayTiles() {
     const container = document.getElementById('tiles-container');
     container.innerHTML = '';
+
+    const tileSize = calculateTileSize();
 
     gameState.tiles.forEach((tile, index) => {
         const tileWrapper = document.createElement('div');
         tileWrapper.className = 'tile-wrapper';
         tileWrapper.dataset.index = index;
 
-        // SVG牌を生成
-        const tileSVG = TileRenderer.generateTileSVG(tile, 60, 80);
-        tileSVG.classList.add('tile');
-        tileWrapper.appendChild(tileSVG);
+        // 画像を使用
+        const tileImg = document.createElement('img');
+        tileImg.src = `image/${tile}.svg`;
+        tileImg.alt = tile;
+        tileImg.className = 'tile';
+        tileImg.style.width = `${tileSize.width}px`;
+        tileImg.style.height = `${tileSize.height}px`;
+        tileImg.draggable = false; // 画像自体のドラッグを無効化
 
-        // ドラッグ可能にする
-        tileWrapper.draggable = true;
+        tileWrapper.appendChild(tileImg);
 
-        // マウスイベント
-        tileWrapper.addEventListener('dragstart', handleDragStart);
-        tileWrapper.addEventListener('dragend', handleDragEnd);
-        tileWrapper.addEventListener('dragover', handleDragOver);
-        tileWrapper.addEventListener('drop', handleDrop);
-        tileWrapper.addEventListener('dragenter', handleDragEnter);
-        tileWrapper.addEventListener('dragleave', handleDragLeave);
+        // デスクトップ: ドラッグ可能にする
+        if (!isMobileDevice()) {
+            tileWrapper.draggable = true;
 
-        // タッチイベント（モバイル対応）
-        tileWrapper.addEventListener('touchstart', handleTouchStart, { passive: false });
-        tileWrapper.addEventListener('touchmove', handleTouchMove, { passive: false });
-        tileWrapper.addEventListener('touchend', handleTouchEnd, { passive: false });
+            // マウスイベント
+            tileWrapper.addEventListener('dragstart', handleDragStart);
+            tileWrapper.addEventListener('dragend', handleDragEnd);
+            tileWrapper.addEventListener('dragover', handleDragOver);
+            tileWrapper.addEventListener('drop', handleDrop);
+            tileWrapper.addEventListener('dragenter', handleDragEnter);
+            tileWrapper.addEventListener('dragleave', handleDragLeave);
+        } else {
+            // モバイル: タッチイベント
+            tileWrapper.addEventListener('touchstart', handleTouchStart, { passive: false });
+            tileWrapper.addEventListener('touchmove', handleTouchMove, { passive: false });
+            tileWrapper.addEventListener('touchend', handleTouchEnd, { passive: false });
+        }
 
         container.appendChild(tileWrapper);
     });
+
+    // モバイル用：コンテナのスタイルを調整
+    if (isMobileDevice()) {
+        container.style.flexWrap = 'nowrap';
+        container.style.gap = '8px';
+        container.style.overflowX = 'auto';
+        container.style.justifyContent = 'flex-start';
+    }
 }
 
-// ドラッグ開始
+// ドラッグ開始（デスクトップ）
 function handleDragStart(e) {
     gameState.draggedElement = e.currentTarget;
     gameState.draggedIndex = parseInt(e.currentTarget.dataset.index);
@@ -137,7 +186,7 @@ function handleDragStart(e) {
     e.dataTransfer.setData('text/html', e.currentTarget.innerHTML);
 }
 
-// ドラッグ終了
+// ドラッグ終了（デスクトップ）
 function handleDragEnd(e) {
     e.currentTarget.classList.remove('dragging');
     // すべてのドラッグオーバー表示をクリア
@@ -146,7 +195,7 @@ function handleDragEnd(e) {
     });
 }
 
-// ドラッグオーバー
+// ドラッグオーバー（デスクトップ）
 function handleDragOver(e) {
     if (e.preventDefault) {
         e.preventDefault();
@@ -155,19 +204,19 @@ function handleDragOver(e) {
     return false;
 }
 
-// ドラッグ進入
+// ドラッグ進入（デスクトップ）
 function handleDragEnter(e) {
     if (e.currentTarget !== gameState.draggedElement) {
         e.currentTarget.classList.add('drag-over');
     }
 }
 
-// ドラッグ離脱
+// ドラッグ離脱（デスクトップ）
 function handleDragLeave(e) {
     e.currentTarget.classList.remove('drag-over');
 }
 
-// ドロップ
+// ドロップ（デスクトップ）
 function handleDrop(e) {
     if (e.stopPropagation) {
         e.stopPropagation();
@@ -175,7 +224,7 @@ function handleDrop(e) {
 
     const dropIndex = parseInt(e.currentTarget.dataset.index);
 
-    if (gameState.draggedIndex !== dropIndex) {
+    if (gameState.draggedIndex !== null && gameState.draggedIndex !== dropIndex) {
         // 牌を移動
         const draggedTile = gameState.tiles.splice(gameState.draggedIndex, 1)[0];
         gameState.tiles.splice(dropIndex, 0, draggedTile);
@@ -203,6 +252,7 @@ let touchState = {
     element: null,
     clone: null,
     currentDropTarget: null,
+    dropIndicator: null,
 };
 
 function handleTouchStart(e) {
@@ -222,10 +272,20 @@ function handleTouchStart(e) {
     touchState.clone.style.pointerEvents = 'none';
     touchState.clone.style.zIndex = '1000';
     touchState.clone.style.opacity = '0.8';
-    updateClonePosition(touch.clientX, touch.clientY);
+    const rect = element.getBoundingClientRect();
+    touchState.clone.style.width = rect.width + 'px';
+    touchState.clone.style.height = rect.height + 'px';
+    updateClonePosition(touch.clientX, touch.clientY, rect.width, rect.height);
     document.body.appendChild(touchState.clone);
 
     element.classList.add('dragging');
+
+    // ドロップインジケーターを作成
+    if (!touchState.dropIndicator) {
+        touchState.dropIndicator = document.createElement('div');
+        touchState.dropIndicator.className = 'drop-indicator';
+        document.body.appendChild(touchState.dropIndicator);
+    }
 }
 
 function handleTouchMove(e) {
@@ -234,24 +294,44 @@ function handleTouchMove(e) {
     if (!touchState.element) return;
 
     const touch = e.touches[0];
-    updateClonePosition(touch.clientX, touch.clientY);
+    const rect = touchState.element.getBoundingClientRect();
+    updateClonePosition(touch.clientX, touch.clientY, rect.width, rect.height);
 
     // 現在のタッチ位置の下にある要素を取得
     touchState.clone.style.display = 'none';
     const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
     touchState.clone.style.display = '';
 
-    // ドラッグオーバー効果
-    document.querySelectorAll('.tile-wrapper').forEach(tile => {
-        tile.classList.remove('drag-over');
-    });
-
+    // ドロップ位置を特定
     if (elementBelow) {
         const tileWrapper = elementBelow.closest('.tile-wrapper');
         if (tileWrapper && tileWrapper !== touchState.element) {
-            tileWrapper.classList.add('drag-over');
+            const targetRect = tileWrapper.getBoundingClientRect();
+            const dropIndex = parseInt(tileWrapper.dataset.index);
+            const draggedIndex = gameState.draggedIndex;
+
+            // ドロップ位置を計算（左側か右側か）
+            let indicatorX;
+            if (dropIndex < draggedIndex) {
+                // 左側に挿入
+                indicatorX = targetRect.left;
+            } else {
+                // 右側に挿入
+                indicatorX = targetRect.right;
+            }
+
+            // インジケーターを表示
+            touchState.dropIndicator.style.display = 'block';
+            touchState.dropIndicator.style.left = indicatorX + 'px';
+            touchState.dropIndicator.style.top = targetRect.top + 'px';
+            touchState.dropIndicator.style.height = targetRect.height + 'px';
+
             touchState.currentDropTarget = tileWrapper;
+        } else {
+            touchState.dropIndicator.style.display = 'none';
         }
+    } else {
+        touchState.dropIndicator.style.display = 'none';
     }
 }
 
@@ -263,6 +343,11 @@ function handleTouchEnd(e) {
     // クローンを削除
     if (touchState.clone && touchState.clone.parentNode) {
         touchState.clone.parentNode.removeChild(touchState.clone);
+    }
+
+    // インジケーターを非表示
+    if (touchState.dropIndicator) {
+        touchState.dropIndicator.style.display = 'none';
     }
 
     // ドロップ処理
@@ -288,23 +373,20 @@ function handleTouchEnd(e) {
     }
 
     // クリーンアップ
-    document.querySelectorAll('.tile-wrapper').forEach(tile => {
-        tile.classList.remove('drag-over');
-    });
-
     touchState = {
         startX: 0,
         startY: 0,
         element: null,
         clone: null,
         currentDropTarget: null,
+        dropIndicator: touchState.dropIndicator, // インジケーターは保持
     };
 }
 
-function updateClonePosition(x, y) {
+function updateClonePosition(x, y, width, height) {
     if (touchState.clone) {
-        touchState.clone.style.left = (x - 30) + 'px';
-        touchState.clone.style.top = (y - 40) + 'px';
+        touchState.clone.style.left = (x - width / 2) + 'px';
+        touchState.clone.style.top = (y - height / 2) + 'px';
     }
 }
 
@@ -361,10 +443,16 @@ function startGame() {
     gameState.moves = 0;
 
     updateStats();
-    displayTiles();
     showScreen('game-screen');
-    startTimer();
-    updateInstruction('牌をドラッグ&ドロップして並び替え');
+
+    // 画面サイズが確定してから表示
+    setTimeout(() => {
+        displayTiles();
+        startTimer();
+    }, 50);
+
+    const deviceType = isMobileDevice() ? 'タッチ' : 'マウス';
+    updateInstruction(`牌を${deviceType}でドラッグ&ドロップして並び替え`);
 }
 
 // ゲーム終了
@@ -382,9 +470,11 @@ function endGame() {
     const finalTilesContainer = document.getElementById('final-tiles');
     finalTilesContainer.innerHTML = '';
     gameState.tiles.forEach(tile => {
-        const tileSVG = TileRenderer.generateTileSVG(tile, 50, 65);
-        tileSVG.classList.add('tile');
-        finalTilesContainer.appendChild(tileSVG);
+        const tileImg = document.createElement('img');
+        tileImg.src = `image/${tile}.svg`;
+        tileImg.alt = tile;
+        tileImg.className = 'tile';
+        finalTilesContainer.appendChild(tileImg);
     });
 
     showScreen('result-screen');
@@ -408,6 +498,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // リスタートボタン
     document.getElementById('restart-btn').addEventListener('click', startGame);
+
+    // リサイズイベント（モバイル）
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+        if (isMobileDevice() && gameState.tiles.length > 0) {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                displayTiles();
+            }, 250);
+        }
+    });
 
     // Service Worker登録
     if ('serviceWorker' in navigator) {
