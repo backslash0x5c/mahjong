@@ -200,11 +200,6 @@ body {
     transform: scale(1.05);
 }
 
-.tile-wrapper.drag-over {
-    transform: scale(1.05);
-    filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
-}
-
 /* 牌画像 */
 .tile {
     width: 60px;

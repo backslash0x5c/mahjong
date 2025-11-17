@@ -8,6 +8,7 @@ let gameState = {
     timerInterval: null,
     draggedIndex: null,
     draggedElement: null,
+    dropIndicator: null, // ドロップインジケーター（デスクトップ・モバイル共通）
 };
 
 // 牌コードから画像ファイル名への変換
@@ -115,6 +116,47 @@ function isSorted(tiles) {
     return true;
 }
 
+// ドロップインジケーターを作成（デスクトップ・モバイル共通）
+function createDropIndicator() {
+    if (!gameState.dropIndicator) {
+        gameState.dropIndicator = document.createElement('div');
+        gameState.dropIndicator.className = 'drop-indicator';
+        document.body.appendChild(gameState.dropIndicator);
+    }
+}
+
+// ドロップインジケーターを表示
+function showDropIndicator(targetElement, dropIndex, draggedIndex) {
+    if (!gameState.dropIndicator) {
+        createDropIndicator();
+    }
+
+    const targetRect = targetElement.getBoundingClientRect();
+
+    // ドロップ位置を計算（左側か右側か）
+    let indicatorX;
+    if (dropIndex < draggedIndex) {
+        // 左側に挿入
+        indicatorX = targetRect.left;
+    } else {
+        // 右側に挿入
+        indicatorX = targetRect.right;
+    }
+
+    // インジケーターを表示
+    gameState.dropIndicator.style.display = 'block';
+    gameState.dropIndicator.style.left = indicatorX + 'px';
+    gameState.dropIndicator.style.top = targetRect.top + 'px';
+    gameState.dropIndicator.style.height = targetRect.height + 'px';
+}
+
+// ドロップインジケーターを非表示
+function hideDropIndicator() {
+    if (gameState.dropIndicator) {
+        gameState.dropIndicator.style.display = 'none';
+    }
+}
+
 // 牌のサイズを計算（モバイルで横一列に収まるように）
 function calculateTileSize() {
     if (!isMobileDevice()) {
@@ -133,7 +175,7 @@ function calculateTileSize() {
 
     // 最大サイズと最小サイズを設定
     const maxWidth = 60;
-    const minWidth = 35;
+    const minWidth = 30;
     const finalWidth = Math.max(minWidth, Math.min(maxWidth, tileWidth));
     const finalHeight = Math.floor(finalWidth * 4 / 3); // アスペクト比 3:4
 
@@ -184,12 +226,16 @@ function displayTiles() {
         container.appendChild(tileWrapper);
     });
 
-    // モバイル用：コンテナのスタイルを調整
+    // モバイル用：コンテナのスタイルを調整（横一列に収める）
     if (isMobileDevice()) {
         container.style.flexWrap = 'nowrap';
         container.style.gap = '8px';
-        container.style.overflowX = 'auto';
-        container.style.justifyContent = 'flex-start';
+        container.style.overflowX = 'visible'; // スクロールを無効化
+        container.style.justifyContent = 'center';
+    } else {
+        container.style.flexWrap = 'wrap';
+        container.style.gap = '0.5rem';
+        container.style.justifyContent = 'center';
     }
 }
 
@@ -200,15 +246,16 @@ function handleDragStart(e) {
     e.currentTarget.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/html', e.currentTarget.innerHTML);
+
+    // ドロップインジケーターを作成
+    createDropIndicator();
 }
 
 // ドラッグ終了（デスクトップ）
 function handleDragEnd(e) {
     e.currentTarget.classList.remove('dragging');
-    // すべてのドラッグオーバー表示をクリア
-    document.querySelectorAll('.tile-wrapper').forEach(tile => {
-        tile.classList.remove('drag-over');
-    });
+    // インジケーターを非表示
+    hideDropIndicator();
 }
 
 // ドラッグオーバー（デスクトップ）
@@ -217,19 +264,25 @@ function handleDragOver(e) {
         e.preventDefault();
     }
     e.dataTransfer.dropEffect = 'move';
+
+    // ドロップインジケーターを表示
+    const targetWrapper = e.currentTarget;
+    if (targetWrapper !== gameState.draggedElement && targetWrapper.classList.contains('tile-wrapper')) {
+        const dropIndex = parseInt(targetWrapper.dataset.index);
+        showDropIndicator(targetWrapper, dropIndex, gameState.draggedIndex);
+    }
+
     return false;
 }
 
 // ドラッグ進入（デスクトップ）
 function handleDragEnter(e) {
-    if (e.currentTarget !== gameState.draggedElement) {
-        e.currentTarget.classList.add('drag-over');
-    }
+    // インジケーターで表示するため、drag-overクラスは不要
 }
 
 // ドラッグ離脱（デスクトップ）
 function handleDragLeave(e) {
-    e.currentTarget.classList.remove('drag-over');
+    // インジケーターで表示するため、何もしない
 }
 
 // ドロップ（デスクトップ）
@@ -239,6 +292,9 @@ function handleDrop(e) {
     }
 
     const dropIndex = parseInt(e.currentTarget.dataset.index);
+
+    // インジケーターを非表示
+    hideDropIndicator();
 
     if (gameState.draggedIndex !== null && gameState.draggedIndex !== dropIndex) {
         // 牌を移動
@@ -257,7 +313,6 @@ function handleDrop(e) {
         }
     }
 
-    e.currentTarget.classList.remove('drag-over');
     return false;
 }
 
@@ -268,7 +323,6 @@ let touchState = {
     element: null,
     clone: null,
     currentDropTarget: null,
-    dropIndicator: null,
 };
 
 function handleTouchStart(e) {
@@ -297,11 +351,7 @@ function handleTouchStart(e) {
     element.classList.add('dragging');
 
     // ドロップインジケーターを作成
-    if (!touchState.dropIndicator) {
-        touchState.dropIndicator = document.createElement('div');
-        touchState.dropIndicator.className = 'drop-indicator';
-        document.body.appendChild(touchState.dropIndicator);
-    }
+    createDropIndicator();
 }
 
 function handleTouchMove(e) {
@@ -322,32 +372,14 @@ function handleTouchMove(e) {
     if (elementBelow) {
         const tileWrapper = elementBelow.closest('.tile-wrapper');
         if (tileWrapper && tileWrapper !== touchState.element) {
-            const targetRect = tileWrapper.getBoundingClientRect();
             const dropIndex = parseInt(tileWrapper.dataset.index);
-            const draggedIndex = gameState.draggedIndex;
-
-            // ドロップ位置を計算（左側か右側か）
-            let indicatorX;
-            if (dropIndex < draggedIndex) {
-                // 左側に挿入
-                indicatorX = targetRect.left;
-            } else {
-                // 右側に挿入
-                indicatorX = targetRect.right;
-            }
-
-            // インジケーターを表示
-            touchState.dropIndicator.style.display = 'block';
-            touchState.dropIndicator.style.left = indicatorX + 'px';
-            touchState.dropIndicator.style.top = targetRect.top + 'px';
-            touchState.dropIndicator.style.height = targetRect.height + 'px';
-
+            showDropIndicator(tileWrapper, dropIndex, gameState.draggedIndex);
             touchState.currentDropTarget = tileWrapper;
         } else {
-            touchState.dropIndicator.style.display = 'none';
+            hideDropIndicator();
         }
     } else {
-        touchState.dropIndicator.style.display = 'none';
+        hideDropIndicator();
     }
 }
 
@@ -362,9 +394,7 @@ function handleTouchEnd(e) {
     }
 
     // インジケーターを非表示
-    if (touchState.dropIndicator) {
-        touchState.dropIndicator.style.display = 'none';
-    }
+    hideDropIndicator();
 
     // ドロップ処理
     if (touchState.currentDropTarget) {
@@ -395,7 +425,6 @@ function handleTouchEnd(e) {
         element: null,
         clone: null,
         currentDropTarget: null,
-        dropIndicator: touchState.dropIndicator, // インジケーターは保持
     };
 }
 
