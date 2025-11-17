@@ -1,6 +1,6 @@
 // Service Worker for PWA - オフライン対応
 
-const CACHE_NAME = 'mahjong-game-v1';
+const CACHE_NAME = 'mahjong-game-v3';
 const urlsToCache = [
     '/',
     '/index.html',
@@ -18,6 +18,8 @@ self.addEventListener('install', event => {
                 return cache.addAll(urlsToCache);
             })
     );
+    // 新しいService Workerを即座にアクティブ化
+    self.skipWaiting();
 });
 
 // フェッチ時
