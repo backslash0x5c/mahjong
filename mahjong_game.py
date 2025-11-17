@@ -38,19 +38,23 @@ def generate_random_tiles(n=13):
 
 
 def display_tile(tile):
-    """牌を日本語表記で表示"""
-    num = tile[0]
-    suit = tile[1]
-
-    if suit == 'z':
-        names = {'1': '東', '2': '南', '3': '西', '4': '北',
-                 '5': '白', '6': '發', '7': '中'}
-        return names[num]
-    else:
-        suit_names = {'m': '萬', 'p': '筒', 's': '索'}
-        kanji_nums = {'1': '一', '2': '二', '3': '三', '4': '四', '5': '五',
-                      '6': '六', '7': '七', '8': '八', '9': '九'}
-        return kanji_nums[num] + suit_names[suit]
+    """牌を絵文字で表示"""
+    # 麻雀牌の絵文字マッピング
+    emoji_map = {
+        # 萬子 (1m-9m)
+        '1m': '🀇', '2m': '🀈', '3m': '🀉', '4m': '🀊', '5m': '🀋',
+        '6m': '🀌', '7m': '🀍', '8m': '🀎', '9m': '🀏',
+        # 筒子 (1p-9p)
+        '1p': '🀙', '2p': '🀚', '3p': '🀛', '4p': '🀜', '5p': '🀝',
+        '6p': '🀞', '7p': '🀟', '8p': '🀠', '9p': '🀡',
+        # 索子 (1s-9s)
+        '1s': '🀐', '2s': '🀑', '3s': '🀒', '4s': '🀓', '5s': '🀔',
+        '6s': '🀕', '7s': '🀖', '8s': '🀗', '9s': '🀘',
+        # 字牌 (1z-7z: 東南西北白發中)
+        '1z': '🀀', '2z': '🀁', '3z': '🀂', '4z': '🀃',
+        '5z': '🀆', '6z': '🀅', '7z': '🀄',
+    }
+    return emoji_map.get(tile, tile)
 
 
 def get_tile_sort_key(tile):
@@ -119,9 +123,9 @@ def is_sorted(tiles):
 
 def display_tiles_with_index(tiles):
     """インデックス付きで牌を表示"""
-    print("\n位置:", " ".join([f"{i:2d}" for i in range(len(tiles))]))
-    print("牌  :", " ".join([f"{t:3s}" for t in tiles]))
-    print("表記:", " ".join([f"{display_tile(t):>3s}" for t in tiles]))
+    print("\n位置:", "  ".join([f"{i:2d}" for i in range(len(tiles))]))
+    print("牌  :", "  ".join([f"{t:3s}" for t in tiles]))
+    print("絵文字:", " ".join([display_tile(t) for t in tiles]))
 
 
 def get_move_input():
@@ -199,8 +203,8 @@ def main():
     # 目標配列の一例を表示（萬→筒→索→字の順）
     sorted_tiles = sorted(tiles, key=get_tile_sort_key)
     print("【目標配列の一例（萬→筒→索→字の順）】")
-    print("牌  :", " ".join([f"{t:3s}" for t in sorted_tiles]))
-    print("表記:", " ".join([f"{display_tile(t):>3s}" for t in sorted_tiles]))
+    print("牌    :", "  ".join([f"{t:3s}" for t in sorted_tiles]))
+    print("絵文字:", " ".join([display_tile(t) for t in sorted_tiles]))
     print("\n※ 種類の順序は任意です。上記以外の順序でもOKです。")
     print()
 
