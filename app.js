@@ -173,10 +173,9 @@ function calculateTileSize() {
     const availableWidth = containerWidth - padding - (gap * (tileCount - 1));
     const tileWidth = Math.floor(availableWidth / tileCount);
 
-    // 最大サイズと最小サイズを設定
+    // 最大サイズのみ設定（最小サイズ制限なし）
     const maxWidth = 60;
-    const minWidth = 30;
-    const finalWidth = Math.max(minWidth, Math.min(maxWidth, tileWidth));
+    const finalWidth = Math.min(maxWidth, tileWidth);
     const finalHeight = Math.floor(finalWidth * 4 / 3); // アスペクト比 3:4
 
     return { width: finalWidth, height: finalHeight };
