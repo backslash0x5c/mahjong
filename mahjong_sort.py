@@ -6,7 +6,7 @@ Mahjong Tile Sorting - Minimum Moves Calculator
 
 import random
 from itertools import permutations
-from bisect import bisect_left
+from bisect import bisect_right
 
 
 def generate_random_tiles(n=13):
@@ -62,7 +62,8 @@ def create_rank_map(suit_order):
 
 def longest_increasing_subsequence(arr):
     """
-    Find the length of Longest Increasing Subsequence (LIS) and indices in O(n log n)
+    Find the length of Longest Non-Decreasing Subsequence (LIS) and indices in O(n log n)
+    Note: This allows equal values (non-decreasing instead of strictly increasing)
     Returns: (LIS length, list of indices in LIS)
     """
     if not arr:
@@ -75,7 +76,7 @@ def longest_increasing_subsequence(arr):
     lis_end = [-1] * n  # lis_end[i] = index of tail of LIS with length i+1
 
     for i, num in enumerate(arr):
-        pos = bisect_left(tails, num)
+        pos = bisect_right(tails, num)
 
         if pos == len(tails):
             tails.append(num)
@@ -189,70 +190,71 @@ def display_tile(tile):
 def simulate_sorting_steps(tiles, lis_indices, rank_map):
     """
     Simulate the sorting process step by step
-    Shows a sequence that reaches the target array (not necessarily the theoretical minimum)
+    Only moves tiles that are NOT in the LIS (Longest Increasing Subsequence)
+    This ensures the minimum number of moves
     """
     steps = []
 
-    # Generate target array
-    target = sorted([(tile, i) for i, tile in enumerate(tiles)],
-                   key=lambda x: (rank_map[x[0]], x[1]))
-    target_tiles = [t for t, _ in target]
+    # Current array with original indices (tile, original_index)
+    current = [(tile, i) for i, tile in enumerate(tiles)]
 
-    # Current array
-    current = list(tiles)
+    lis_set = set(lis_indices)
 
     # Record initial state
     steps.append({
         'step': 0,
-        'tiles': current.copy(),
+        'tiles': [t for t, _ in current],
         'message': 'Initial hand',
         'move_from': None,
         'move_to': None,
         'moved_tile': None
     })
 
+    # Identify tiles to move (not in LIS)
+    to_move = [(i, tiles[i]) for i in range(len(tiles)) if i not in lis_set]
+
     step_num = 0
 
-    # Fill each position with the correct tile from left to right
-    for target_pos in range(len(current)):
-        # Tile that should be placed at target_pos
-        target_tile = target_tiles[target_pos]
-
-        # Skip if correct tile is already placed
-        if current[target_pos] == target_tile:
-            continue
-
-        # Find the correct tile in current array (from positions after target_pos)
+    # Move each tile that's not in LIS to its correct position
+    for orig_idx, tile in to_move:
+        # Find this tile in current array by original index
         from_pos = None
-        for i in range(target_pos + 1, len(current)):
-            if current[i] == target_tile:
+        for i, (t, idx) in enumerate(current):
+            if idx == orig_idx:
                 from_pos = i
                 break
 
         if from_pos is None:
-            # Search forward if not found (shouldn't happen, but just in case)
-            for i in range(target_pos):
-                if current[i] == target_tile:
-                    from_pos = i
-                    break
-
-        if from_pos is None or from_pos == target_pos:
             continue
 
-        # Move tile
-        moved_tile = current.pop(from_pos)
-        current.insert(target_pos, moved_tile)
+        # Remove the tile
+        item = current.pop(from_pos)
+
+        # Find correct insertion position based on rank
+        # Insert after all tiles with smaller or equal rank
+        target_pos = 0
+        tile_rank = rank_map[tile]
+        for i, (t, idx) in enumerate(current):
+            t_rank = rank_map[t]
+            if t_rank < tile_rank:
+                target_pos = i + 1
+            elif t_rank == tile_rank and idx < orig_idx:
+                # For tiles with same rank, use original index order
+                target_pos = i + 1
+
+        # Insert the tile
+        current.insert(target_pos, item)
 
         step_num += 1
 
         # Record step
         steps.append({
             'step': step_num,
-            'tiles': current.copy(),
+            'tiles': [t for t, _ in current],
             'message': f'Move {step_num}',
             'move_from': from_pos,
             'move_to': target_pos,
-            'moved_tile': moved_tile
+            'moved_tile': tile
         })
 
     return steps
