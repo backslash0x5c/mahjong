@@ -67,10 +67,53 @@ def get_tile_sort_key(tile):
 
 
 def is_sorted(tiles):
-    """牌が正しくソートされているかチェック"""
-    for i in range(len(tiles) - 1):
-        if get_tile_sort_key(tiles[i]) > get_tile_sort_key(tiles[i + 1]):
+    """
+    牌が正しくソートされているかチェック
+    条件：同じ種類の牌がグループ化され、各グループ内で数字順にソートされている
+    グループの順序は任意でOK
+    """
+    if not tiles:
+        return True
+
+    # 連続する同じ種類の牌をグループ化
+    groups = []
+    current_group = [tiles[0]]
+
+    for i in range(1, len(tiles)):
+        current_suit = tiles[i][1]  # 牌種（m/p/s/z）
+        prev_suit = tiles[i-1][1]
+
+        if current_suit == prev_suit:
+            # 同じ種類なら現在のグループに追加
+            current_group.append(tiles[i])
+        else:
+            # 種類が変わったら新しいグループを開始
+            groups.append(current_group)
+            current_group = [tiles[i]]
+
+    # 最後のグループを追加
+    groups.append(current_group)
+
+    # 各グループ内がソートされているかチェック
+    seen_suits = set()
+    for group in groups:
+        # グループの種類を取得
+        suit = group[0][1]
+
+        # 同じ種類が既に出現していたらNG（種類が分かれている）
+        if suit in seen_suits:
             return False
+        seen_suits.add(suit)
+
+        # グループ内で数字が増加順になっているかチェック
+        for i in range(len(group) - 1):
+            num_current = int(group[i][0])
+            num_next = int(group[i+1][0])
+
+            # グループ内で数字が増加していない場合はNG
+            if num_current > num_next:
+                return False
+
     return True
 
 
@@ -139,7 +182,8 @@ def main():
     print("=" * 70)
     print("\nルール:")
     print("  - ランダムに配られた13枚の牌を、各牌種ごとにソートしてください")
-    print("  - 牌種の順序: 萬子(m) → 筒子(p) → 索子(s) → 字牌(z)")
+    print("  - 同じ種類の牌をまとめて、各グループ内を数字順に並べます")
+    print("  - 牌種の順序は任意です（例：萬→筒→索→字でも、筒→字→萬→索でもOK）")
     print("  - 各牌種内は数字順（1～9、字牌は東南西北白發中）")
     print("  - スコア = 手数 × 時間（秒）で計算されます")
     print("  - スコアが低いほど優秀です！")
@@ -152,11 +196,12 @@ def main():
     display_tiles_with_index(tiles)
     print()
 
-    # 目標配列を表示
+    # 目標配列の一例を表示（萬→筒→索→字の順）
     sorted_tiles = sorted(tiles, key=get_tile_sort_key)
-    print("【目標配列（参考）】")
+    print("【目標配列の一例（萬→筒→索→字の順）】")
     print("牌  :", " ".join([f"{t:3s}" for t in sorted_tiles]))
     print("表記:", " ".join([f"{display_tile(t):>3s}" for t in sorted_tiles]))
+    print("\n※ 種類の順序は任意です。上記以外の順序でもOKです。")
     print()
 
     input("Enterキーを押してゲームを開始...")
