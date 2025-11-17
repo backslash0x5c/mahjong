@@ -473,6 +473,165 @@ function calculateScore(moves, time) {
     return moves * time;
 }
 
+// =========================================
+// ゲーム結果の保存・取得
+// =========================================
+
+const STORAGE_KEY = 'mahjong-game-results';
+const MAX_RESULTS = 50; // 最大保存件数
+
+// ゲーム結果を保存
+function saveGameResult(result) {
+    try {
+        let results = getGameResults();
+
+        // 新しい結果を先頭に追加
+        results.unshift({
+            id: Date.now(),
+            moves: result.moves,
+            time: result.time,
+            score: result.score,
+            tiles: result.tiles,
+            date: new Date().toISOString()
+        });
+
+        // 最大件数を超えた場合は古いものを削除
+        if (results.length > MAX_RESULTS) {
+            results = results.slice(0, MAX_RESULTS);
+        }
+
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(results));
+        return true;
+    } catch (e) {
+        console.error('結果の保存に失敗しました:', e);
+        return false;
+    }
+}
+
+// 全ゲーム結果を取得
+function getGameResults() {
+    try {
+        const data = localStorage.getItem(STORAGE_KEY);
+        return data ? JSON.parse(data) : [];
+    } catch (e) {
+        console.error('結果の取得に失敗しました:', e);
+        return [];
+    }
+}
+
+// ベストスコアを取得
+function getBestScore() {
+    const results = getGameResults();
+    if (results.length === 0) return null;
+    return results.reduce((best, current) =>
+        !best || current.score < best.score ? current : best
+    , null);
+}
+
+// 統計情報を取得
+function getStatistics() {
+    const results = getGameResults();
+    if (results.length === 0) {
+        return {
+            totalGames: 0,
+            bestScore: null,
+            avgMoves: 0,
+            avgTime: 0
+        };
+    }
+
+    const totalMoves = results.reduce((sum, r) => sum + r.moves, 0);
+    const totalTime = results.reduce((sum, r) => sum + r.time, 0);
+    const bestScore = results.reduce((best, r) =>
+        !best || r.score < best.score ? r.score : best
+    , null);
+
+    return {
+        totalGames: results.length,
+        bestScore: bestScore,
+        avgMoves: (totalMoves / results.length).toFixed(1),
+        avgTime: (totalTime / results.length).toFixed(1)
+    };
+}
+
+// 結果をクリア
+function clearGameResults() {
+    try {
+        localStorage.removeItem(STORAGE_KEY);
+        return true;
+    } catch (e) {
+        console.error('結果のクリアに失敗しました:', e);
+        return false;
+    }
+}
+
+// =========================================
+// SNSシェア機能
+// =========================================
+
+// シェアテキストを生成
+function generateShareText(moves, time, score) {
+    const stats = getStatistics();
+    let text = `🀄 麻雀理牌ゲーム\n\n`;
+    text += `手数: ${moves}手\n`;
+    text += `時間: ${time.toFixed(2)}秒\n`;
+    text += `スコア: ${score.toFixed(2)}\n\n`;
+
+    if (stats.bestScore && score <= stats.bestScore) {
+        text += `🎉 自己ベスト更新！\n\n`;
+    }
+
+    text += `#麻雀理牌ゲーム`;
+    return text;
+}
+
+// Web Share APIで共有
+async function shareResult(moves, time, score) {
+    const text = generateShareText(moves, time, score);
+    const url = window.location.href;
+
+    // Web Share API が利用可能な場合
+    if (navigator.share) {
+        try {
+            await navigator.share({
+                title: '麻雀理牌ゲーム',
+                text: text,
+                url: url
+            });
+            return true;
+        } catch (err) {
+            // ユーザーがキャンセルした場合はエラーにしない
+            if (err.name !== 'AbortError') {
+                console.error('共有に失敗しました:', err);
+            }
+            return false;
+        }
+    }
+
+    // Web Share API が利用できない場合はTwitterにフォールバック
+    return shareToTwitter(moves, time, score);
+}
+
+// Twitter (X) で共有
+function shareToTwitter(moves, time, score) {
+    const text = generateShareText(moves, time, score);
+    const url = window.location.href;
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+
+    window.open(twitterUrl, '_blank', 'width=550,height=420');
+    return true;
+}
+
+// LINEで共有
+function shareToLine(moves, time, score) {
+    const text = generateShareText(moves, time, score);
+    const url = window.location.href;
+    const lineUrl = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
+
+    window.open(lineUrl, '_blank', 'width=550,height=420');
+    return true;
+}
+
 // 画面切り替え
 function showScreen(screenId) {
     document.querySelectorAll('.screen').forEach(screen => {
@@ -505,10 +664,26 @@ function endGame() {
     const elapsedTime = getElapsedTime();
     const score = calculateScore(gameState.moves, elapsedTime);
 
+    // 結果をデータベースに保存
+    const result = {
+        moves: gameState.moves,
+        time: elapsedTime,
+        score: score,
+        tiles: [...gameState.tiles]
+    };
+    saveGameResult(result);
+
     // 結果を表示
     document.getElementById('result-moves').textContent = gameState.moves;
     document.getElementById('result-time').textContent = elapsedTime.toFixed(2) + 's';
     document.getElementById('result-score').textContent = score.toFixed(2);
+
+    // ベストスコアを表示
+    const bestScore = getBestScore();
+    const bestScoreElement = document.getElementById('best-score');
+    if (bestScoreElement && bestScore) {
+        bestScoreElement.textContent = bestScore.score.toFixed(2);
+    }
 
     // 最終的な牌配列を表示
     const finalTilesContainer = document.getElementById('final-tiles');
@@ -532,6 +707,96 @@ function quitGame() {
     }
 }
 
+// 履歴画面を表示
+function showHistory() {
+    displayStatistics();
+    displayHistoryList();
+    showScreen('history-screen');
+}
+
+// 統計情報を表示
+function displayStatistics() {
+    const stats = getStatistics();
+    const statsContainer = document.getElementById('statistics');
+
+    if (stats.totalGames === 0) {
+        statsContainer.innerHTML = '<p style="text-align: center; opacity: 0.7;">まだプレイ履歴がありません</p>';
+        return;
+    }
+
+    statsContainer.innerHTML = `
+        <div class="result-item">
+            <span class="result-label">総プレイ回数</span>
+            <span class="result-value">${stats.totalGames}</span>
+        </div>
+        <div class="result-item">
+            <span class="result-label">ベストスコア</span>
+            <span class="result-value">${stats.bestScore ? stats.bestScore.toFixed(2) : '-'}</span>
+        </div>
+        <div class="result-item">
+            <span class="result-label">平均手数</span>
+            <span class="result-value">${stats.avgMoves}</span>
+        </div>
+        <div class="result-item">
+            <span class="result-label">平均時間</span>
+            <span class="result-value">${stats.avgTime}s</span>
+        </div>
+    `;
+}
+
+// 履歴リストを表示
+function displayHistoryList() {
+    const results = getGameResults();
+    const historyList = document.getElementById('history-list');
+
+    if (results.length === 0) {
+        historyList.innerHTML = '<p style="text-align: center; opacity: 0.7;">プレイ履歴がありません</p>';
+        return;
+    }
+
+    historyList.innerHTML = results.map((result, index) => {
+        const date = new Date(result.date);
+        const dateStr = `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+        const isBest = result.score === getStatistics().bestScore;
+
+        return `
+            <div class="history-item" style="
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 10px;
+                padding: 1rem;
+                margin-bottom: 0.5rem;
+                ${isBest ? 'border: 2px solid #ffd700;' : ''}
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <span style="opacity: 0.8;">${dateStr}</span>
+                    ${isBest ? '<span style="color: #ffd700;">🏆 ベスト</span>' : ''}
+                </div>
+                <div style="display: flex; justify-content: space-around; font-size: 0.9rem;">
+                    <div>手数: <strong>${result.moves}</strong></div>
+                    <div>時間: <strong>${result.time.toFixed(2)}s</strong></div>
+                    <div>スコア: <strong style="color: #ffd700;">${result.score.toFixed(2)}</strong></div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// 履歴をクリア
+function clearHistory() {
+    if (confirm('本当に履歴をすべて削除しますか？')) {
+        clearGameResults();
+        showHistory();
+    }
+}
+
+// 結果をシェア
+function handleShare() {
+    const moves = gameState.moves;
+    const time = getElapsedTime();
+    const score = calculateScore(moves, time);
+    shareResult(moves, time, score);
+}
+
 // イベントリスナー設定
 document.addEventListener('DOMContentLoaded', () => {
     // スタートボタン
@@ -542,6 +807,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // リスタートボタン
     document.getElementById('restart-btn').addEventListener('click', startGame);
+
+    // 履歴ボタン
+    document.getElementById('history-btn').addEventListener('click', showHistory);
+
+    // シェアボタン
+    document.getElementById('share-btn').addEventListener('click', handleShare);
+
+    // 履歴画面から戻るボタン
+    document.getElementById('back-to-start-btn').addEventListener('click', () => {
+        showScreen('start-screen');
+    });
+
+    // 履歴クリアボタン
+    document.getElementById('clear-history-btn').addEventListener('click', clearHistory);
 
     // リサイズイベント（モバイル）
     let resizeTimer;
